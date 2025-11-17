@@ -4,35 +4,35 @@
 <meta charset="UTF-8">
 <title>Chaos Chat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Uploadcare CSS v1 Regular mode -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@uploadcare/file-uploader@1/web/uc-file-uploader-regular.min.css">
+
 <style>
-  body { background:#fff; color:#000; font-family:system-ui,sans-serif; margin:0; padding:0; }
+  body { background:#fff; color:#000; font-family:system-ui,sans-serif; margin:0; padding:0;}
   .container { padding:20px; max-width:700px; margin:auto; }
-  input,button {
-    width:100%; padding:14px; margin-top:10px; font-size:16px;
-    border-radius:10px; border:1px solid #ccc; outline:none;
-  }
-  button { background:#2563eb; color:white; border:none; font-weight:600; }
-  h1,h2 { margin-top:0; }
+  input,button { width:100%; padding:14px; font-size:16px; border-radius:10px; border:1px solid #ccc; margin-top:10px; }
+  button { background:#2563eb; color:white; border:none; font-weight:600; cursor:pointer; }
   #messages { margin-top:20px; }
-  .msg {
-    padding:14px; border-radius:12px; margin:8px 0; background:#f1f1f1;
-    word-break:break-word;
-  }
+  .msg { padding:14px; border-radius:12px; margin:10px 0; background:#f1f1f1; word-break:break-word; }
   .me { background:#2563eb; color:white; text-align:right; }
-  .meta { font-size:12px; opacity:0.6; margin-bottom:4px; }
-  a.fileLink { color:#2563eb; font-weight:600; word-break:break-all; display:block; margin-top:6px; }
+  .meta { font-size:12px; opacity:0.6; margin-bottom:6px; }
+  a.fileLink { color:#2563eb; font-weight:600; display:block; margin-top:5px; word-break:break-all; }
   .expired { color:#b91c1c; font-weight:700; }
 </style>
 </head>
+
 <body>
 
+<!-- JOIN SCREEN -->
 <div id="joinPage" class="container">
   <h1>Chaos Chat 💀</h1>
   <input id="usernameInput" placeholder="Your name">
   <input id="roomInput" placeholder="Room name">
-  <button id="joinBtn">Join</button>
+  <button id="joinBtn">Join Chat</button>
 </div>
 
+<!-- CHAT SCREEN -->
 <div id="chatPage" class="container" style="display:none;">
   <h2 id="roomTitle"></h2>
   <div id="messages"></div>
@@ -40,17 +40,31 @@
   <input id="textInput" placeholder="Message…">
   <button id="sendBtn">Send</button>
 
-  <input type="file" id="fileInput">
-  <button id="uploadBtn">Send File</button>
+  <!-- Uploadcare Config -->
+  <uc-config
+    ctx-name="my-uploader"
+    pubkey="08f76b7cb00ef078b17a"
+    source-list="local, camera, gdrive, facebook"
+    files-view-mode="grid"
+    user-agent-integration="llm-js"
+  ></uc-config>
+
+  <!-- Uploadcare button -->
+  <uc-file-uploader-regular
+    ctx-name="my-uploader"
+    class="uc-light uc-purple"
+  ></uc-file-uploader-regular>
 </div>
 
 <script type="module">
-  // Firebase
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-  import {
-    getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp
-  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
+  // Uploadcare init
+  import * as UC from "https://cdn.jsdelivr.net/npm/@uploadcare/file-uploader@1/web/uc-file-uploader-inline.min.js";
+  UC.defineComponents(UC);
+
+  // Firebase config
   const firebaseConfig = {
     apiKey:"AIzaSyCbUUOrC8mNhOr2hXNZzP9nE68BCddH70A",
     authDomain:"bullshit-cc1c4.firebaseapp.com",
@@ -69,8 +83,6 @@
   const messagesEl=document.getElementById("messages");
   const textInput=document.getElementById("textInput");
   const sendBtn=document.getElementById("sendBtn");
-  const fileInput=document.getElementById("fileInput");
-  const uploadBtn=document.getElementById("uploadBtn");
 
   let username=null;
   let room=null;
@@ -79,12 +91,11 @@
   joinBtn.onclick=()=>{
     username=usernameInput.value.trim();
     room=roomInput.value.trim().toLowerCase();
-    if(!username||!room) return alert("Enter name + room");
-
+    if(!username||!room) return alert("Enter username + room");
     joinPage.style.display="none";
     chatPage.style.display="block";
     roomTitle.textContent=`Room: ${room}`;
-    listen();
+    startListener();
   };
 
   sendBtn.onclick=async()=>{
@@ -92,43 +103,29 @@
     if(!text) return;
     textInput.value="";
     await addDoc(collection(db,"rooms",room,"messages"),{
-      from:username, text, time:serverTimestamp(), type:"text"
+      from:username,text,time:serverTimestamp(),type:"text"
     });
   };
 
-  uploadBtn.onclick=async()=>{
-    const file=fileInput.files[0];
-    if(!file) return alert("Choose a file");
-    uploadBtn.disabled=true; uploadBtn.textContent="Uploading…";
-
-    const form=new FormData();
-    form.append("file",file);
-    const res=await fetch("https://file.io", { method:"POST", body:form });
-    const data=await res.json();
-
-    if(!data.success){
-      alert("Upload failed");
-      uploadBtn.disabled=false; uploadBtn.textContent="Send File";
-      return;
-    }
+  // Uploadcare event hack: capture on upload complete
+  document.addEventListener("uc-upload-complete", async (event) => {
+    const file = event.detail.fileInfo;
+    const fileUrl = file.cdnUrl || file.originalUrl;
 
     await addDoc(collection(db,"rooms",room,"messages"),{
       from:username,
       text:"",
-      fileUrl:data.link,
-      filename:file.name,
+      fileUrl,
+      filename:file.originalFilename,
       type:"file",
       time:serverTimestamp()
     });
+  });
 
-    fileInput.value="";
-    uploadBtn.disabled=false; uploadBtn.textContent="Send File";
-  };
-
-  function listen(){
+  function startListener(){
     if(unsub) unsub();
     const q=query(collection(db,"rooms",room,"messages"),orderBy("time","asc"));
-    unsub=onSnapshot(q,(snap)=>{
+    unsub=onSnapshot(q,snap=>{
       snap.docChanges().forEach(c=>{
         if(c.type==="added") render(c.doc.data());
       });
@@ -151,8 +148,7 @@
       a.href=m.fileUrl; a.target="_blank"; a.rel="noopener";
       a.className="fileLink";
       a.textContent=`📎 ${m.filename}`;
-      
-      // check expired
+
       try{
         const head=await fetch(m.fileUrl,{method:"HEAD"});
         if(!head.ok){
