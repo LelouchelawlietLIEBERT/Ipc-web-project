@@ -1,254 +1,186 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8" />
-<title>Chaos Chat 💀</title>
+<meta charset="UTF-8">
+<title>Chaos Chat Ultra Simple</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-* { box-sizing:border-box; }
+  body {
+    background:#0e0e0e;
+    color:white;
+    font-family:system-ui,sans-serif;
+    margin:0;
+    padding:0;
+  }
 
-body {
-margin:0; padding:0;
-background:#0e0e0e; color:white;
-font-family:system-ui, sans-serif;
-display:flex;
-height:100vh;
-overflow:hidden;
-}
 
-.hidden { display:none; }
+  .container {
+    padding:20px;
+    max-width:800px;
+    margin:auto;
+  }
 
-.center {
-width:100%; height:100%;
-display:flex; flex-direction:column;
-justify-content:center; align-items:center;
-gap:14px;
-padding:20px;
-}
 
-input, button {
-width:100%; max-width:350px;
-padding:14px;
-border-radius:12px;
-border:none; outline:none;
-font-size:16px;
-}
+  input, button {
+    width:100%;
+    padding:14px;
+    font-size:16px;
+    border-radius:10px;
+    border:none;
+    margin-top:10px;
+  }
 
-button {
-background:#6d4aff;
-color:white;
-font-weight:600;
-cursor:pointer;
-}
 
-#chatScreen {
-display:flex;
-width:100%;
-height:100%;
-overflow:hidden;
-}
+  button { background:#6d4aff; color:white; font-weight:600; }
 
-.sidebar {
-width:260px;
-background:#151515;
-border-right:1px solid #333;
-padding:18px;
-flex-shrink:0;
-}
 
-.chat {
-flex:1;
-display:flex;
-flex-direction:column;
-height:100%;
-}
+  .message {
+    padding:12px;
+    border-radius:10px;
+    background:#222;
+    margin:8px 0;
+    word-break:break-word;
+  }
 
-#messages {
-flex:1;
-padding:14px;
-overflow-y:auto;
-scroll-behavior:smooth;
-}
 
-.message-row {
-display:flex;
-width:100%;
-margin-bottom:10px;
-}
+  .me {
+    background:#6d4aff;
+    text-align:right;
+  }
 
-.message-bubble {
-background:#232323;
-padding:10px 14px;
-border-radius:14px;
-font-size:15px;
-max-width:80%;
-word-wrap:break-word;
-line-height:1.3;
-}
 
-.message-me {
-justify-content:flex-end;
-}
+  .meta {
+    font-size:12px;
+    opacity:0.7;
+  }
 
-.message-me .message-bubble {
-background:#6d4aff;
-}
 
-.message-meta {
-font-size:12px;
-opacity:.65;
-margin-bottom:6px;
-}
-
-.bottom {
-display:flex;
-gap:10px;
-padding:12px;
-border-top:1px solid #333;
-}
-
-.bottom input {
-flex:1;
-background:#181818;
-border-radius:999px;
-color:white;
-}
-
-.bottom button {
-border-radius:999px;
-padding:0 20px;
-white-space:nowrap;
-}
-
-/* --- RESPONSIVE MODE --- */
-@media(max-width:750px){
-#chatScreen { flex-direction:column; }
-.sidebar {
-width:100%;
-border-right:none; border-bottom:1px solid #333;
-text-align:center;
-}
-.message-bubble { max-width:95%; }
-}
+  #messages {
+    margin-top:20px;
+  }
 </style>
 </head>
 
+
 <body>
 
-<div id="joinScreen" class="center">
-<h1>Chaos Chat 💀</h1>
-<input id="usernameInput" placeholder="username">
-<input id="roomInput" placeholder="room name">
-<button id="joinBtn">Join Room</button>
+
+<!-- JOIN PAGE -->
+<div id="joinPage" class="container">
+  <h1>Chaos Chat 💀</h1>
+  <input id="usernameInput" placeholder="Enter username">
+  <input id="roomInput" placeholder="Room name">
+  <button id="joinBtn">Enter Chat</button>
 </div>
 
-<div id="chatScreen" class="hidden">
-<div class="sidebar">
-<h2>Chaos Chat</h2>
-<p id="currentUser"></p>
+
+<!-- CHAT PAGE -->
+<div id="chatPage" class="container" style="display:none;">
+  <h2 id="roomTitle"></h2>
+  <div id="messages"></div>
+
+
+  <input id="textInput" placeholder="Type message…">
+  <button id="sendBtn">Send</button>
 </div>
 
-<div class="chat">
-<div id="messages"></div>
-<div class="bottom">
-<input id="textInput" placeholder="Type message…">
-<button id="sendBtn">Send</button>
-</div>
-</div>
-</div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import {
-getFirestore, collection, addDoc,
-query, orderBy, onSnapshot, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc,
+    query, orderBy, onSnapshot, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-const firebaseConfig = {
-apiKey: "AIzaSyCbUUOrC8mNhOr2hXNZzP9nE68BCddH70A",
-authDomain: "bullshit-cc1c4.firebaseapp.com",
-projectId: "bullshit-cc1c4"
-};
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+  const firebaseConfig = {
+    apiKey: "AIzaSyCbUUOrC8mNhOr2hXNZzP9nE68BCddH70A",
+    authDomain: "bullshit-cc1c4.firebaseapp.com",
+    projectId: "bullshit-cc1c4"
+  };
 
-const joinScreen=document.getElementById("joinScreen");
-const chatScreen=document.getElementById("chatScreen");
-const usernameInput=document.getElementById("usernameInput");
-const roomInput=document.getElementById("roomInput");
-const joinBtn=document.getElementById("joinBtn");
-const currentUserEl=document.getElementById("currentUser");
-const messagesEl=document.getElementById("messages");
-const textInput=document.getElementById("textInput");
-const sendBtn=document.getElementById("sendBtn");
 
-let currentUsername=null;
-let currentRoom=null;
-let unsubMessages=null;
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-joinBtn.addEventListener("click",()=>{
-const name=usernameInput.value.trim();
-const room=roomInput.value.trim().toLowerCase();
-if(!name||!room) return alert("Enter username + room");
 
-currentUsername=name;
-currentRoom=room;
+  const joinPage = document.getElementById("joinPage");
+  const chatPage = document.getElementById("chatPage");
+  const usernameInput = document.getElementById("usernameInput");
+  const roomInput = document.getElementById("roomInput");
+  const joinBtn = document.getElementById("joinBtn");
+  const roomTitle = document.getElementById("roomTitle");
+  const messagesEl = document.getElementById("messages");
+  const textInput = document.getElementById("textInput");
+  const sendBtn = document.getElementById("sendBtn");
 
-joinScreen.classList.add("hidden");
-chatScreen.classList.remove("hidden");
-currentUserEl.innerText=`User: ${name} | Room: ${room}`;
 
-startMessagesListener();
-});
+  let username=null;
+  let room=null;
+  let unsub=null;
 
-sendBtn.addEventListener("click",async()=>{
-const text=textInput.value.trim();
-if(!text) return;
-textInput.value="";
 
-await addDoc(collection(db,"rooms",currentRoom,"messages"),{
-from:currentUsername,
-text,
-time:serverTimestamp()
-});
-});
+  joinBtn.onclick = () => {
+    username = usernameInput.value.trim();
+    room = roomInput.value.trim().toLowerCase();
+    if (!username || !room) return alert("enter username + room");
 
-function startMessagesListener(){
-if(unsubMessages)unsubMessages();
 
-const q=query(collection(db,"rooms",currentRoom,"messages"),
-orderBy("time","asc"));
+    joinPage.style.display="none";
+    chatPage.style.display="block";
+    roomTitle.textContent = `Room: ${room}`;
 
-unsubMessages=onSnapshot(q,(snapshot)=>{
-snapshot.docChanges().forEach(change=>{
-if(change.type==="added") renderMessage(change.doc.data());
-});
-messagesEl.scrollTop=messagesEl.scrollHeight;
-});
-}
 
-function renderMessage(msg){
-const row=document.createElement("div");
-row.classList.add("message-row");
-if(msg.from===currentUsername) row.classList.add("message-me");
+    startListener();
+  };
 
-const bubble=document.createElement("div");
-bubble.classList.add("message-bubble");
 
-const meta=document.createElement("div");
-meta.classList.add("message-meta");
-meta.textContent=msg.from;
+  sendBtn.onclick = async () => {
+    const text = textInput.value.trim();
+    if (!text) return;
+    textInput.value = "";
 
-const content=document.createElement("div");
-content.textContent=msg.text;
 
-bubble.appendChild(meta);
-bubble.appendChild(content);
-row.appendChild(bubble);
-messagesEl.appendChild(row);
-}
+    await addDoc(collection(db,"rooms",room,"messages"),{
+      from:username,
+      text,
+      time:serverTimestamp()
+    });
+  };
+
+
+  function startListener() {
+    if (unsub) unsub();
+
+
+    const q = query(
+      collection(db,"rooms",room,"messages"),
+      orderBy("time","asc")
+    );
+
+
+    unsub = onSnapshot(q, snapshot => {
+      snapshot.docChanges().forEach(change => {
+        if (change.type==="added") renderMessage(change.doc.data());
+      });
+
+
+      window.scrollTo(0,document.body.scrollHeight);
+    });
+  }
+
+
+  function renderMessage(m) {
+    const div=document.createElement("div");
+    div.classList.add("message");
+    if (m.from===username) div.classList.add("me");
+
+
+    div.innerHTML = `<div class="meta">${m.from}</div>${m.text}`;
+    messagesEl.appendChild(div);
+  }
 </script>
+
 
 </body>
 </html>
