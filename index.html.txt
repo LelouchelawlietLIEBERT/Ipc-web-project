@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Chaos Chat 💀</title>
+<style>
+*{box-sizing:border-box;}
+body{margin:0;background:#0e0e0e;color:white;font-family:system-ui,sans-serif;}
+.hidden{display:none;}
+.center{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+input,button{padding:12px;border-radius:10px;border:none;outline:none;}
+button{background:#6d4aff;color:white;cursor:pointer;}
+#chatScreen{display:flex;height:100vh;}
+.sidebar{width:250px;background:#151515;border-right:1px solid #333;padding:16px;}
+.chat{flex:1;display:flex;flex-direction:column;}
+#messages{flex:1;overflow-y:auto;padding:16px;}
+.message-row{display:flex;margin-bottom:8px;}
+.message-bubble{background:#232323;padding:10px 14px;border-radius:12px;max-width:65%;word-break:break-word;font-size:14px;}
+.message-me{justify-content:flex-end;}
+.message-me .message-bubble{background:#6d4aff;}
+.message-meta{font-size:11px;opacity:0.7;margin-bottom:4px;}
+img.msg-img{max-width:240px;border-radius:10px;display:block;margin-top:6px;cursor:pointer;}
+.bottom{display:flex;gap:8px;padding:10px;border-top:1px solid #333;}
+.bottom input{flex:1;background:#181818;color:white;border-radius:999px;}
+.upload{display:flex;align-items:center;justify-content:center;width:46px;height:46px;border:1px solid #444;border-radius:50%;cursor:pointer;font-size:20px;}
+.upload input{display:none;}
+</style>
+</head>
+
+<body>
+
+<!-- JOIN SCREEN -->
+<div id="joinScreen" class="center">
+<h1>Chaos Chat 💀</h1>
+<input id="usernameInput" placeholder="username">
+<input id="roomInput" placeholder="room name">
+<button id="joinBtn">Join</button>
+</div>
+
+<!-- CHAT SCREEN -->
+<div id="chatScreen" class="hidden">
+<div class="sidebar">
+<h2>Chaos Chat</h2>
+<p id="currentUser"></p>
+</div>
+
+<div class="chat">
+<div id="messages"></div>
+<div class="bottom">
+<input id="textInput" placeholder="Type message…">
+<button id="sendBtn">Send</button>
+<label class="upload">📎<input type="file" id="fileInput"></label>
+</div>
+</div>
+</div>
+
+<script type="module">
+// Firebase imports
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import {
+getFirestore, collection, addDoc,
+query, orderBy, onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import {
+getStorage, ref, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
+
+// ---- YOUR FIREBASE CONFIG ----
+const firebaseConfig = {
+apiKey: "AIzaSyCbUUOrC8mNhOr2hXNZzP9nE68BCddH70A",
+authDomain: "bullshit-cc1c4.firebaseapp.com",
+projectId: "bullshit-cc1c4",
+storageBucket: "bullshit-cc1c4.firebasestorage.app",
+messagingSenderId: "748380185350",
+appId: "1:748380185350:web:ccfd6a774b51226623b487"
+};
+// --------------------------------
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// DOM elements
+const joinScreen = document.getElementById("joinScreen");
+const chatScreen = document.getElementById("chatScreen");
+const usernameInput = document.getElementById("usernameInput");
+const roomInput = document.getElementById("roomInput");
+const joinBtn = document.getElementById("joinBtn");
+const currentUserEl = document.getElementById("currentUser");
+const messagesEl = document.getElementById("messages");
+const textInput = document.getElementById("textInput");
+const sendBtn = document.getElementById("sendBtn");
+const fileInput = document.getElementById("fileInput");
+
+let currentUsername = null;
+let currentRoom = null;
+let unsubMessages = null;
+
+joinBtn.addEventListener("click", () => {
+const name = usernameInput.value.trim();
+const room = roomInput.value.trim().toLowerCase();
+if (!name || !room) return alert("Enter username + room");
+
+currentUsername = name;
+currentRoom = room;
+
+joinScreen.classList.add("hidden");
+chatScreen.classList.remove("hidden");
+currentUserEl.innerText = `User: ${name} | Room: ${room}`;
+
+startMessagesListener();
+});
+
+// Send text
+sendBtn.addEventListener("click", async () => {
+const text = textInput.value.trim();
+if (!text) return;
+textInput.value = "";
+await addDoc(collection(db, "rooms", currentRoom, "messages"), {
+from: currentUsername,
+text,
+fileUrl: null,
+type: "text",
+time: serverTimestamp()
+});
+});
+
+// File upload
+fileInput.addEventListener("change", async () => {
+const file = fileInput.files[0];
+if (!file) return;
+
+const path = `uploads/${currentRoom}/${Date.now()}_${file.name}`;
+const fileRef = ref(storage, path);
+
+await uploadBytes(fileRef, file);
+const url = await getDownloadURL(fileRef);
+
+await addDoc(collection(db, "rooms", currentRoom, "messages"), {
+from: currentUsername,
+text: "",
+fileUrl: url,
+filename: file.name,
+type: file.type.startsWith("image") ? "image" : "file",
+time: serverTimestamp()
+});
+
+fileInput.value = "";
+});
+
+// Start realtime listener
+function startMessagesListener() {
+if (unsubMessages) unsubMessages();
+
+const q = query(collection(db, "rooms", currentRoom, "messages"), orderBy("time", "asc"));
+unsubMessages = onSnapshot(q, (snapshot) => {
+snapshot.docChanges().forEach(change => {
+if (change.type === "added") renderMessage(change.doc.data());
+});
+messagesEl.scrollTop = messagesEl.scrollHeight;
+});
+}
+
+// Render message
+function renderMessage(msg) {
+const row = document.createElement("div");
+row.classList.add("message-row");
+if (msg.from === currentUsername) row.classList.add("message-me");
+
+const bubble = document.createElement("div");
+bubble.classList.add("message-bubble");
+
+const meta = document.createElement("div");
+meta.classList.add("message-meta");
+meta.textContent = msg.from;
+
+const content = document.createElement("div");
+
+if (msg.type === "image") {
+const img = document.createElement("img");
+img.src = msg.fileUrl;
+img.classList.add("msg-img");
+img.onclick = () => window.open(msg.fileUrl, "_blank");
+content.appendChild(img);
+} else if (msg.type === "file") {
+const link = document.createElement("a");
+link.href = msg.fileUrl;
+link.download = msg.filename;
+link.textContent = `📁 ${msg.filename}`;
+link.style.color = "white";
+content.appendChild(link);
+} else {
+content.textContent = msg.text;
+}
+
+bubble.appendChild(meta);
+bubble.appendChild(content);
+row.appendChild(bubble);
+messagesEl.appendChild(row);
+}
+</script>
+
+</body>
+</html>
