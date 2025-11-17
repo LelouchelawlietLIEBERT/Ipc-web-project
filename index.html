@@ -1,34 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Chaos Chat with Uploadcare</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Chaos Chat Uploadcare FIXED</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Uploadcare CSS v1 Regular -->
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/@uploadcare/file-uploader@1/web/uc-file-uploader-regular.min.css">
-  <style>
-    body { background:#fff; color:#000; font-family:system-ui,sans-serif; margin:0; padding:20px; }
-    .container { max-width:700px; margin:auto; }
-    input,button { width:100%; padding:14px; font-size:16px; margin-top:10px;
-                   border-radius:10px; border:1px solid #ccc; outline:none; }
-    button { background:#2563eb; color:white; border:none; font-weight:600; cursor:pointer; }
-    #messages { margin-top:20px; }
-    .msg { padding:14px; border-radius:12px; margin:10px 0; background:#f1f1f1; word-break:break-word; }
-    .me { background:#2563eb; color:white; text-align:right; }
-    .meta { font-size:12px; opacity:0.6; margin-bottom:6px; }
-    a.fileLink { color:#2563eb; font-weight:600; display:block; margin-top:6px; word-break:break-all; }
-    .expired { color:#b91c1c; font-weight:700; }
-  </style>
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@uploadcare/file-uploader@1/web/uc-file-uploader-regular.min.css">
+
+<style>
+  body { background:#fff; color:#000; font-family:system-ui,sans-serif; padding:20px; margin:0; }
+  .container { max-width:700px; margin:auto; }
+  input,button{width:100%;padding:14px;margin-top:10px;font-size:16px;border-radius:10px;border:1px solid #ccc;}
+  button{background:#2563eb;color:white;border:none;font-weight:600;cursor:pointer;}
+  .msg { padding:14px; background:#f1f1f1; border-radius:12px; margin:10px 0; word-break:break-word; }
+  .me { background:#2563eb; color:white; text-align:right; }
+  .meta { font-size:12px; opacity:.6; margin-bottom:6px; }
+  a.fileLink { color:#2563eb; font-weight:600; display:block; margin-top:4px; word-break:break-all; }
+</style>
 </head>
+
 <body>
 
 <div id="joinPage" class="container">
   <h1>Chaos Chat 💀</h1>
   <input id="usernameInput" placeholder="Your name">
   <input id="roomInput" placeholder="Room name">
-  <button id="joinBtn">Join Chat</button>
+  <button id="joinBtn">Join</button>
 </div>
 
 <div id="chatPage" class="container" style="display:none;">
@@ -38,15 +36,23 @@
   <input id="textInput" placeholder="Message…">
   <button id="sendBtn">Send</button>
 
-  <!-- Uploader config -->
-  <uc-config ctx-name="my-uploader"
-             pubkey="08f76b7cb00ef078b17a"
-             source-list="local, camera, gdrive, facebook"
-             files-view-mode="grid"
-             user-agent-integration="llm-js">
+  <!-- Uploadcare config -->
+  <uc-config
+    ctx-name="my-uploader"
+    pubkey="08f76b7cb00ef078b17a"
+    source-list="local, camera, gdrive, facebook"
+    files-view-mode="grid"
+    user-agent-integration="llm-js">
   </uc-config>
 
-  <uc-file-uploader-regular ctx-name="my-uploader" class="uc-light uc-purple"></uc-file-uploader-regular>
+  <!-- REQUIRED CONTEXT PROVIDER TO RECEIVE EVENTS -->
+  <uc-upload-ctx-provider ctx-name="my-uploader"></uc-upload-ctx-provider>
+
+  <!-- Uploader UI -->
+  <uc-file-uploader-regular
+    ctx-name="my-uploader"
+    class="uc-light uc-purple">
+  </uc-file-uploader-regular>
 </div>
 
 <script type="module">
@@ -61,113 +67,93 @@
     authDomain:"bullshit-cc1c4.firebaseapp.com",
     projectId:"bullshit-cc1c4"
   };
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
   const joinPage = document.getElementById("joinPage");
   const chatPage = document.getElementById("chatPage");
-  const usernameInput = document.getElementById("usernameInput");
-  const roomInput = document.getElementById("roomInput");
-  const joinBtn = document.getElementById("joinBtn");
-  const roomTitle = document.getElementById("roomTitle");
-  const messagesEl = document.getElementById("messages");
-  const textInput = document.getElementById("textInput");
-  const sendBtn = document.getElementById("sendBtn");
+  const usernameInput=document.getElementById("usernameInput");
+  const roomInput=document.getElementById("roomInput");
+  const joinBtn=document.getElementById("joinBtn");
+  const roomTitle=document.getElementById("roomTitle");
+  const messagesEl=document.getElementById("messages");
+  const textInput=document.getElementById("textInput");
+  const sendBtn=document.getElementById("sendBtn");
 
-  let username = null;
-  let room = null;
-  let unsub = null;
+  let username=null;
+  let room=null;
+  let unsub=null;
 
-  joinBtn.onclick = () => {
-    username = usernameInput.value.trim();
-    room = roomInput.value.trim().toLowerCase();
-    if (!username || !room) return alert("Enter username + room");
-    joinPage.style.display = "none";
-    chatPage.style.display = "block";
-    roomTitle.textContent = `Room: ${room}`;
+  joinBtn.onclick=()=>{
+    username=usernameInput.value.trim();
+    room=roomInput.value.trim().toLowerCase();
+    if(!username||!room) return alert("Enter username + room");
+    joinPage.style.display="none";
+    chatPage.style.display="block";
+    roomTitle.textContent=`Room: ${room}`;
     startListener();
   };
 
-  sendBtn.onclick = async () => {
-    const text = textInput.value.trim();
-    if (!text) return;
-    textInput.value = "";
-    await addDoc(collection(db, "rooms", room, "messages"), {
-      from: username,
-      text,
-      time: serverTimestamp(),
-      type: "text"
+  sendBtn.onclick=async()=>{
+    const text=textInput.value.trim();
+    if(!text) return;
+    textInput.value="";
+    await addDoc(collection(db,"rooms",room,"messages"),{
+      from:username,text,time:serverTimestamp(),type:"text"
     });
   };
 
-  // Capture Uploadcare success event
-  const uploaderElement = document.querySelector('uc-file-uploader-regular[ctx-name="my-uploader"]');
-  uploaderElement.addEventListener("common-upload-success", async (event) => {
-    const state = event.detail;  // OutputCollectionState object
-    const entries = state.successEntries;
-    for (const entry of entries) {
-      const info = entry.fileInfo;
-      const fileUrl = info.cdnUrl || info.originalUrl;
-      await addDoc(collection(db, "rooms", room, "messages"), {
-        from: username,
-        text: "",
-        fileUrl,
-        filename: info.originalFilename,
-        type: info.isImage ? "image" : "file",
-        time: serverTimestamp()
-      });
-    }
+  // Correct Uploadcare event listener
+  const ctxProvider = document.querySelector('uc-upload-ctx-provider[ctx-name="my-uploader"]');
+
+  ctxProvider.addEventListener("file-upload-success", async (e) => {
+    console.log("Upload success event:", e.detail);
+
+    const file = e.detail; // OutputFileEntry object
+    const fileUrl = file.cdnUrl;
+    const name = file.originalFilename;
+
+    await addDoc(collection(db,"rooms",room,"messages"),{
+      from:username,
+      fileUrl,
+      filename:name,
+      type: file.isImage ? "image" : "file",
+      text:"",
+      time:serverTimestamp()
+    });
   });
 
-  function startListener(){
-    if (unsub) unsub();
-    const q = query(collection(db, "rooms", room, "messages"), orderBy("time","asc"));
-    unsub = onSnapshot(q, (snap) => {
-      snap.docChanges().forEach(c => {
-        if (c.type === "added") renderMessage(c.doc.data());
-      });
-      window.scrollTo(0, document.body.scrollHeight);
+  function startListener() {
+    if(unsub) unsub();
+    const q=query(collection(db,"rooms",room,"messages"),orderBy("time","asc"));
+    unsub=onSnapshot(q,(snap)=>{
+      snap.docChanges().forEach(c=>{ if(c.type==="added") renderMessage(c.doc.data()); });
+      window.scrollTo(0,document.body.scrollHeight);
     });
   }
 
-  async function renderMessage(m){
-    const el = document.createElement("div");
-    el.classList.add("msg");
-    if (m.from === username) el.classList.add("me");
+  function renderMessage(m){
+    const wrap=document.createElement("div");
+    wrap.classList.add("msg");
+    if(m.from===username) wrap.classList.add("me");
 
-    const meta = document.createElement("div");
+    const meta=document.createElement("div");
     meta.classList.add("meta");
-    meta.textContent = m.from;
-    el.appendChild(meta);
+    meta.textContent=m.from;
+    wrap.appendChild(meta);
 
-    if (m.type === "file" || m.type === "image"){
-      const a = document.createElement("a");
-      a.href = m.fileUrl;
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.className = "fileLink";
-      a.textContent = `📎 ${m.filename}`;
-
-      try {
-        const head = await fetch(m.fileUrl, { method: "HEAD" });
-        if (!head.ok) {
-          a.textContent = `❌ ${m.filename} (expired/deleted)`;
-          a.className = "expired";
-          a.href = "#";
-        }
-      } catch {
-        a.textContent = `❌ ${m.filename} (expired/deleted)`;
-        a.className = "expired";
-        a.href = "#";
-      }
-      el.appendChild(a);
+    if(m.type==="file" || m.type==="image"){
+      const a=document.createElement("a");
+      a.href=m.fileUrl; a.target="_blank"; a.className="fileLink";
+      a.textContent=`📎 ${m.filename}`;
+      wrap.appendChild(a);
     } else {
-      const t = document.createElement("div");
-      t.textContent = m.text;
-      el.appendChild(t);
+      const t=document.createElement("div");
+      t.textContent=m.text;
+      wrap.appendChild(t);
     }
-
-    messagesEl.appendChild(el);
+    messagesEl.appendChild(wrap);
   }
 </script>
 
